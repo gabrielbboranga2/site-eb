@@ -86,6 +86,10 @@ export async function getLiveHierarchies():Promise<LiveGroupHierarchy[]>{
   return hierarchyRequest;
 }
 
+export async function getUserAvatarMap(userIds:string[]):Promise<Map<string,string>>{
+  return fetchAvatars([...new Set(userIds.filter(Boolean))]);
+}
+
 export async function getUserGroupMemberships(userId:string):Promise<UserGroupMembership[]>{
   const apiKey=process.env.ROBLOX_API_KEY?.trim();
   const divisions=await getDivisions();

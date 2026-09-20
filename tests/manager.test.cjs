@@ -42,7 +42,7 @@ test('Log filters and ranking count only identified training instructors',()=>{
  const logs=[{id:'1',tipo:'treino',userId:'12',username:'Militar',descricao:'Aprovado',autorId:'1',autorUsername:'Instrutor'},{id:'2',tipo:'promocao',userId:'12',username:'Militar',descricao:'UP',autorId:'1',autorUsername:'Instrutor'},{id:'3',tipo:'treino',userId:'13',username:'Outro',descricao:'Aprovado'}];
  assert.equal(filterActivities(logs,'  instrutor  ','treino').length,1);
  assert.equal(filterActivities(logs,'13','').length,1);
- assert.deepEqual(trainingRanking(logs),[{name:'Instrutor',count:1}]);
+ assert.deepEqual(trainingRanking(logs),[{id:'1',name:'Instrutor',avatar:undefined,count:1}]);
 });
 test('Emblems follow divisions and the main-group hierarchy',()=>{
  const thirdSergeant=PATENTES.find(rank=>rank.ordem===4);const aspirant=PATENTES.find(rank=>rank.ordem===9);const brigadier=PATENTES.find(rank=>rank.ordem===16);

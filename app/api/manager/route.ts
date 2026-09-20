@@ -5,6 +5,7 @@ import {readPermissions} from '@/lib/settings-store';
 import {readActivities} from '@/lib/activity-db';
 import {getActiveCdpMap} from '@/lib/cdp';
 import {isDatabaseConfigured} from '@/lib/db';
+import {getUserAvatarMap} from '@/lib/roblox';
 export const dynamic='force-dynamic';
 export async function GET(request:Request){
  const user=await getSessionUser<{exp:number;id:string;roleId?:string;rankNumber?:number}>(request);
@@ -18,7 +19,11 @@ export async function GET(request:Request){
   if(channel==='Meu perfil'||channel==='CDP')logs=[];
   if(channel==='Início')logs=allowed('Logs globais')?logs.slice(0,4):[];
   if(channel==='Histórico de patentes')logs=logs.filter(l=>['promocao','rebaixamento'].includes(l.tipo));
-  if(channel==='Ranking')logs=logs.filter(l=>l.tipo==='treino');
+  if(channel==='Ranking'){
+   logs=logs.filter(l=>l.tipo==='treino');
+   const avatars=await getUserAvatarMap(logs.flatMap(log=>log.autorId?[log.autorId]:[]));
+   logs=logs.map(log=>({...log,autorAvatar:log.autorId?avatars.get(log.autorId):undefined}));
+  }
   const active=allowed('CDP')?await getActiveCdpMap():new Map();
   const cdpMembers=[...active.values()].map(m=>({userId:m.userId,username:m.username,rankName:m.rankName,roleId:m.roleId,rankNumber:0,division:'EXÉRCITO',cdpFim:m.endsAt}));
   return NextResponse.json({...totals,logs,cdpMembers,auditAvailable:isDatabaseConfigured()},{headers:{'cache-control':'no-store'}});
