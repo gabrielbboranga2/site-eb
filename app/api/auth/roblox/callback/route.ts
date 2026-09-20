@@ -26,15 +26,14 @@ export async function GET(request:Request){
   try{
     const tokenResponse=await fetch('https://apis.roblox.com/oauth/v1/token',{
       method:'POST',
-      headers:{
-        'content-type':'application/x-www-form-urlencoded',
-        authorization:`Basic ${btoa(`${clientId}:${clientSecret}`)}`,
-      },
+      headers:{'content-type':'application/x-www-form-urlencoded'},
       body:new URLSearchParams({
         grant_type:'authorization_code',
         code,
         code_verifier:verifier,
         redirect_uri:redirectUri,
+        client_id:clientId,
+        client_secret:clientSecret,
       }),
       cache:'no-store',
     });
