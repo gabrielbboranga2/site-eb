@@ -20,7 +20,7 @@ export async function GET(request:Request){
   const clientId=process.env.ROBLOX_CLIENT_ID?.trim();
   const clientSecret=process.env.ROBLOX_CLIENT_SECRET?.trim();
   const sessionSecret=process.env.SESSION_SECRET?.trim();
-  if(!clientId||!clientSecret||!sessionSecret||!process.env.ROBLOX_API_KEY?.trim())return redirectError(origin,'config');
+  if(!clientId||!clientSecret||!sessionSecret)return redirectError(origin,'config');
 
   const redirectUri=`${origin}/api/auth/roblox/callback`;
   try{

@@ -40,6 +40,7 @@ export interface LiveGroupHierarchy{
 type GroupMembership={path?:string;user?:string;role?:string;roles?:string[]};
 type GroupRole={id?:string;path?:string;displayName?:string;rank?:number};
 type PublicGroupRole={id:number;name:string;rank:number};
+type PublicUserMembership={group?:{id?:number};role?:{id?:number;name?:string;rank?:number}};
 type GroupData={sigla:string;groupId:number;memberships:GroupMembership[];roles:Map<string,GroupRole>};
 
 const CACHE_TTL=60_000;
@@ -87,8 +88,24 @@ export async function getLiveHierarchies():Promise<LiveGroupHierarchy[]>{
 
 export async function getUserGroupMemberships(userId:string):Promise<UserGroupMembership[]>{
   const apiKey=process.env.ROBLOX_API_KEY?.trim();
-  if(!apiKey)throw new Error('ROBLOX_API_KEY não configurada.');
-  const memberships=await Promise.all((await getDivisions()).map(async division=>{
+  const divisions=await getDivisions();
+  if(!apiKey){
+    const response=await fetch(`https://groups.roblox.com/v2/users/${encodeURIComponent(userId)}/groups/roles`,{cache:'no-store'});
+    if(!response.ok)throw new Error(`Falha ao verificar os grupos públicos do usuário (${response.status}).`);
+    const data=await response.json()as{data?:PublicUserMembership[]};
+    return divisions.map(division=>{
+      const membership=(data.data||[]).find(item=>item.group?.id===division.groupId);
+      if(!membership?.role?.id)return null;
+      return{
+        sigla:division.sigla,
+        groupId:division.groupId,
+        roleId:String(membership.role.id),
+        roleName:membership.role.name||'Membro',
+        rankNumber:membership.role.rank||0,
+      } satisfies UserGroupMembership;
+    }).filter((membership):membership is UserGroupMembership=>membership!==null);
+  }
+  const memberships=await Promise.all(divisions.map(async division=>{
     try{
       const membership=await getGroupMembershipForUser(division.groupId,userId,apiKey);
       if(!membership)return null;

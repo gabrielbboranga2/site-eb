@@ -45,3 +45,4 @@ next-env.d.ts
 
 # embedded folder
 EB-DO-MIG-Netlify/
+.env*
