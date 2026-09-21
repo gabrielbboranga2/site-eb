@@ -3,6 +3,7 @@ import './globals.css';
 import './auth.css';
 import './visual-system.css';
 import './manager.css';
+import './dashboard-premium.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL || 'http://localhost:3000'),

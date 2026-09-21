@@ -8,6 +8,7 @@ import{getTrainingRule}from'@/lib/training-rules';
 import{sendSiteLog}from'@/lib/discord-logs';
 import{getWebhook}from'@/lib/creator-config';
 import{isDatabaseConfigured}from'@/lib/db';
+import{claimTrainingCode,consumeTrainingCode,normalizeTrainingCode,releaseTrainingCode,type TrainingCodeClaim}from'@/lib/training-codes';
 
 export const dynamic='force-dynamic';
 export const runtime='nodejs';
@@ -20,12 +21,14 @@ export async function POST(request:Request){
   const session=await getSessionUser<Session>(request);
   if(!session)return NextResponse.json({error:'Sua sessão expirou. Entre novamente com o Roblox.'},{status:401});
 
+  let verificationClaim:TrainingCodeClaim|null=null;
   try{
     if(!sameOrigin(request)||!await authorizedFor(request,['Treinamentos']))return NextResponse.json({error:'Sua patente não tem acesso a treinamentos.'},{status:403});
     const form=await request.formData();
     const community=clean(form.get('community'),30);
     const training=clean(form.get('training'),100);
     const observation=clean(form.get('observation'),1000);
+    const verificationCode=normalizeTrainingCode(clean(form.get('verificationCode'),30));
     const proof=form.get('proof');
     let participants:string[]=[];
     try{
@@ -43,6 +46,7 @@ participants=JSON.parse(String(form.get('participants')||'[]'))}catch{}
     if(!isDatabaseConfigured())return NextResponse.json({error:'O banco de dados precisa estar conectado para registrar o treino no ranking e nos logs.'},{status:503});
     const webhook=await getWebhook('trainings');
     if(!webhook)return NextResponse.json({error:'O webhook de treinamentos ainda não foi configurado no painel do Criador.'},{status:503});
+    if(community==='EXÉRCITO')verificationClaim=await claimTrainingCode(verificationCode,session.id,rule.id);
 
     const extension=proof.type==='image/png'?'png':proof.type==='image/webp'?'webp':'jpg';
     const filename=`treinamento-${community.toLocaleLowerCase('pt-BR').replace(/[^a-z0-9]+/g,'-')}-${Date.now()}.${extension}`;
@@ -70,12 +74,19 @@ participants=JSON.parse(String(form.get('participants')||'[]'))}catch{}
     discordForm.set('payload_json',JSON.stringify(payload));
     discordForm.set('files[0]',proof,filename);
     const response=await fetch(`${webhook}?wait=true`,{method:'POST',body:discordForm,cache:'no-store'});
-    if(!response.ok){console.error('Discord recusou o registro de treinamento',response.status,await response.text());return NextResponse.json({error:'O Discord não aceitou o envio. Confira o webhook na Vercel.'},{status:502})}
+    if(!response.ok){console.error('Discord recusou o registro de treinamento',response.status,await response.text());throw new Error('O Discord não aceitou o envio. Confira o webhook na Vercel.')}
     const message=await response.json()as{id?:string};
-    await sendSiteLog({title:'Treinamento registrado',color:0xBDA866,fields:[{name:'Instrutor',value:`${session.username}\n${session.rank||'Militar'}`,inline:true},{name:'Comunidade',value:community,inline:true},{name:'Treinamento',value:rule.name,inline:true},{name:'Participantes',value:participants.map(name=>`• ${name}`).join('\n')},{name:'Relatório',value:observation},{name:'Prova',value:`Enviada no canal de treinamentos · mensagem ${message.id||'sem ID'}`} ]});
-    await recordActivity({tipo:'treino',userId:session.id,username:session.username,descricao:rule.name+' · '+participants.length+' participantes',autorId:session.id,autorUsername:session.username},{required:true});
+    if(verificationClaim)await consumeTrainingCode(verificationClaim.claimToken,session.id,session.username);
+    await sendSiteLog({title:'Treinamento registrado',color:0xBDA866,fields:[{name:'Instrutor',value:`${session.username}\n${session.rank||'Militar'}`,inline:true},{name:'Comunidade',value:community,inline:true},{name:'Treinamento',value:rule.name,inline:true},...(verificationClaim?[{name:'Código utilizado',value:verificationClaim.code,inline:true}]:[]),{name:'Participantes',value:participants.map(name=>`• ${name}`).join('\n')},{name:'Relatório',value:observation},{name:'Prova',value:`Enviada no canal de treinamentos · mensagem ${message.id||'sem ID'}`} ]});
+    const verificationText=verificationClaim?` · código ${verificationClaim.code} validado`:'';
+    await recordActivity({tipo:'treino',userId:session.id,username:session.username,descricao:rule.name+' · '+participants.length+' participantes'+verificationText,autorId:session.id,autorUsername:session.username},{required:true});
     return NextResponse.json({ok:true,messageId:message.id||null},{status:201,headers:{'cache-control':'no-store'}});
-  }catch(error){console.error('Falha ao registrar treinamento',error);return NextResponse.json({error:'Não foi possível processar a foto do treinamento.'},{status:500})}
+  }catch(error){
+    if(verificationClaim)await releaseTrainingCode(verificationClaim.claimToken).catch(releaseError=>console.error('Falha ao liberar código reservado',releaseError));
+    console.error('Falha ao registrar treinamento',error);
+    const message=error instanceof Error&&(/código|Discord/i.test(error.message))?error.message:'Não foi possível processar a foto do treinamento.';
+    return NextResponse.json({error:message},{status:/código/i.test(message)?409:500})
+  }
 }
 
 function clean(value:FormDataEntryValue|null,max:number){return typeof value==='string'?value.trim().slice(0,max):''}

@@ -8,6 +8,7 @@ const {canView,validPermissions,DEFAULT_PERMISSIONS,CHANNELS} = require('../lib/
 const {isCreatorRole,remainingCdp,filterActivities,trainingRanking} = require('../lib/manager.ts');
 const {PATENTES} = require('../lib/patentes.ts');
 const {earnedEmblems} = require('../lib/emblems.ts');
+const {normalizeTrainingCode,trainingTypeForRule} = require('../lib/training-codes.ts');
 test('Only the exact Criador role gets management access',()=>{
   assert.equal(isCreatorRole('808700015'),true);
   for(const rank of PATENTES.filter(p=>p.sigla!=='CR'))assert.equal(isCreatorRole(rank.roleId),false,rank.nome);
@@ -49,4 +50,13 @@ test('Emblems follow divisions and the main-group hierarchy',()=>{
  assert.deepEqual(earnedEmblems(thirdSergeant.roleId,['BFE']).map(item=>item.key),['BFE','ESA']);
  assert.deepEqual(earnedEmblems(aspirant.roleId,[]).map(item=>item.key),['ESA','AMAN']);
  assert.deepEqual(earnedEmblems(brigadier.roleId,['STAFF']).map(item=>item.key),['STAFF','ESA','AMAN','EPCAR']);
+});
+test('Rank emblems use loadable Roblox texture assets',()=>{
+ const creator=PATENTES.find(rank=>rank.sigla==='CR');const items=earnedEmblems(creator.roleId,[]);
+ assert.equal(items.find(item=>item.key==='ESA').assetId,'128393838300716');
+ assert.equal(items.find(item=>item.key==='AMAN').assetId,'125993679368838');
+});
+test('Training verification codes normalize and map to server modes',()=>{
+ assert.equal(normalizeTrainingCode(' mig-a1b2c3-d4e5 '),'MIG-A1B2C3-D4E5');
+ assert.equal(trainingTypeForRule('normal'),'NORMAL');assert.equal(trainingTypeForRule('epcar'),'EPCAR');assert.equal(trainingTypeForRule('unknown'),null);
 });

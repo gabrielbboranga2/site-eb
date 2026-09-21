@@ -12,11 +12,11 @@ export interface TrainingRule{
 
 export const TRAINING_RULES:Record<TrainingCommunity,TrainingRule[]>={
   'EXÉRCITO':[
-    {id:'pracas',code:'PRA',name:'Treinamento de Praças',result:'Instrui Recruta até Terceiro Sargento',minInstructorRank:5,minInstructorRole:'[2° SGT] Segundo Sargento'},
-    {id:'graduados',code:'GRA',name:'Treinamento de Graduados',result:'Instrui Segundo Sargento até Cadete',minInstructorRank:9,minInstructorRole:'[ASP] Aspirante a Oficial'},
-    {id:'aman',code:'AMAN',name:'AMAN — Academia Militar das Agulhas Negras',result:'Instrui Cadete para Aspirante a Oficial',minInstructorRank:10,minInstructorRole:'[2° TEN] Segundo Tenente'},
-    {id:'oficiais',code:'OF',name:'Treinamento de Oficiais',result:'Instrui Segundo Tenente até Coronel',minInstructorRank:17,minInstructorRole:'[GEN BDA] General de Brigada'},
-    {id:'epc',code:'EPC',name:'EPC — Escola Preparatória de Coronéis',result:'Instrui Coronel para General de Brigada',minInstructorRank:18,minInstructorRole:'[GEN DV] General de Divisão'},
+    {id:'normal',code:'NORMAL',name:'Treinamento Normal',result:'Participantes: Recruta até Soldado',minInstructorRank:9,minInstructorRole:'[ASP] Aspirante a Oficial'},
+    {id:'esa',code:'ESA',name:'ESA — Escola de Sargentos',result:'Participantes: Cabo até Subtenente',minInstructorRank:9,minInstructorRole:'[ASP] Aspirante a Oficial'},
+    {id:'aman',code:'AMAN',name:'AMAN — Academia Militar',result:'Participantes: Cadete até Coronel',minInstructorRank:9,minInstructorRole:'[ASP] Aspirante a Oficial'},
+    {id:'epcar',code:'EPCAR',name:'EPCAr — Formação do Alto Comando',result:'Participantes: Administrador até Comandante',minInstructorRank:16,minInstructorRole:'[ADM] Administrador'},
+    {id:'taf',code:'TAF',name:'Teste de Aptidão Física',result:'Atividade física verificada pelo servidor',minInstructorRank:9,minInstructorRole:'[ASP] Aspirante a Oficial'},
   ],
   'STAFF':[
     {id:'moderacao',code:'MOD',name:'Formação de Moderação',result:'Procedimentos e conduta da equipe',minInstructorRank:4,minInstructorRole:'[ADM] Administrador'},
