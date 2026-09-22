@@ -10,6 +10,7 @@ import {EVENT_LABELS,type ManagerData,type Activity,type RosterMember} from '@/l
 import {Hierarchy,Members,Logs,Cdp,Ranking,Creator,Help} from './ManagerViews';
 export interface SessionUser {id:string;username:string;rank?:string;avatar?:string;isAdmin?:boolean;isCreator?:boolean;roleId?:string;division?:string;rankNumber?:number;divisions?:Array<{name:string;rankNumber?:number;role?:string}>}
 type Announcement={id:string;title:string;message:string;color:string;placement:'topbar'|'below';endsAt:string|null};
+type DivisionVisual={id:number;nome:string;sigla:string;groupId:number;imageUrl?:string};
 const groups=[{title:'Geral',items:['Início','Meu perfil','Central de ajuda','Configurações']},{title:'Ferramentas',items:['Entregar patente','Promoção em divisão','Rebaixamentos','Treinamentos']},{title:'Consultas',items:['Estatísticas','Militares','Hierarquia','Logs globais','CDP','Histórico de patentes','Ranking']},{title:'Conteúdo',items:['Documentos','Atualizações']}];
 const icons:Record<string,string>={'Início':'home','Meu perfil':'user','Central de ajuda':'help','Configurações':'settings','Entregar patente':'award','Promoção em divisão':'layers','Rebaixamentos':'down','Treinamentos':'flag','Estatísticas':'chart','Militares':'users','Hierarquia':'layers','Logs globais':'logs','CDP':'clock','Histórico de patentes':'clock','Ranking':'award','Documentos':'book','Atualizações':'flag'};
 export function Icon({name,size=20}:{name:string;size?:number}){
@@ -74,6 +75,10 @@ function Overview({user,data,navigate,visible}:{user:SessionUser;data:ManagerDat
  const primaryAction=visible.includes('Treinamentos')?'Treinamentos':visible.includes('Entregar patente')?'Entregar patente':'Meu perfil';
  const quickDescriptions:Record<string,string>={'Treinamentos':'Validar e registrar uma instrução','Entregar patente':'Preparar militares aprovados','CDP':'Acompanhar prazos ativos','Hierarquia':'Consultar a cadeia de comando','Militares':'Pesquisar o efetivo','Logs globais':'Revisar ações confirmadas'};
  const shortcuts=['Treinamentos','Entregar patente','CDP','Hierarquia','Militares','Logs globais'].filter(page=>visible.includes(page as Channel)).slice(0,4);
+ const[divisionVisuals,setDivisionVisuals]=useState<DivisionVisual[]>([]);
+ useEffect(()=>{fetch('/api/divisions',{cache:'no-store'}).then(response=>response.ok?response.json():null).then(payload=>setDivisionVisuals(payload?.divisions||[])).catch(()=>{})},[]);
+ const divisionImage=(sigla:string)=>divisionVisuals.find(item=>item.sigla===sigla)?.imageUrl||'';
+ const mainGroupImage=divisionImage('EXÉRCITO');
  return <>
   <section className="welcome-panel command-briefing">
    <div className="briefing-copy">
@@ -85,6 +90,7 @@ function Overview({user,data,navigate,visible}:{user:SessionUser;data:ManagerDat
      {visible.includes('Hierarquia')&&<button className="m-button briefing-secondary" onClick={()=>navigate('Hierarquia')}>Consultar hierarquia</button>}
     </div>
    </div>
+   {mainGroupImage&&<img className="command-group-mark" src={mainGroupImage} alt="Emblema da comunidade principal"/>}
    <div className="command-pass" aria-label="Identificação militar atual">
     <div className="command-pass-head"><span>Identificação militar</span><i>Ativa</i></div>
     <div className="command-pass-person"><Avatar name={user.username} src={user.avatar}/><div><b>{user.username}</b><small>{user.rank||'Membro do Exército'}</small></div></div>
@@ -96,7 +102,22 @@ function Overview({user,data,navigate,visible}:{user:SessionUser;data:ManagerDat
    <section className="m-panel quick-panel"><div className="panel-title"><div><small>Operações</small><h2>Acesso rápido</h2></div><span>{shortcuts.length} disponíveis</span></div><div className="quick-grid">{shortcuts.map(page=><button key={page} onClick={()=>navigate(page)}><span className="quick-icon"><Icon name={icons[page]} size={22}/></span><span className="quick-copy"><b>{page}</b><small>{quickDescriptions[page]}</small></span><span className="quick-arrow" aria-hidden="true">›</span></button>)}</div></section>
    <section className="m-panel activity-panel"><div className="panel-title"><div><small>Movimentação</small><h2>Atividade recente</h2></div>{visible.includes('Logs globais')&&<button className="text-button" onClick={()=>navigate('Logs globais')}>Abrir registros</button>}</div>{data?.atividadesRecentes.length?<div className="activity-list">{data.atividadesRecentes.slice(0,4).map(l=><div key={l.id}><span className="activity-dot"/><div><b>{l.username}</b><small>{EVENT_LABELS[l.tipo]||l.tipo}</small></div><time>{new Date(l.timestamp).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</time></div>)}</div>:<Blank text={data?.auditAvailable===false?'O histórico precisa de armazenamento persistente para ficar disponível.':'As ações confirmadas aparecerão aqui.'}/>}</section>
   </div>
-  <section className="m-panel division-panel"><div className="panel-title"><div><small>Comunidades</small><h2>Divisões do MIG</h2></div><span>{DIVISOES.length} grupos conectados</span></div><div className="division-cards">{DIVISOES.map(d=><a key={d.id} href={`https://www.roblox.com/communities/${d.groupId}`} target="_blank" rel="noreferrer"><span className="division-symbol"><Icon name={d.sigla==='EXÉRCITO'?'shield':'layers'} size={22}/></span><b>{d.sigla}</b><span>{data?.divisoes[d.sigla]??'—'} militares</span><small>Abrir comunidade</small></a>)}</div></section>
+  <section className="home-feature-grid" aria-label="Destaques da central">
+   <article className="m-panel identity-feature">
+    <div className="feature-avatar"><Avatar name={user.username} src={user.avatar}/><span><i/>EM SERVIÇO</span></div>
+    <div><small>Seu posto de comando</small><h2>{user.rank||'Militar do MIG'}</h2><p>{user.division||'EXÉRCITO'} · perfil sincronizado com o Roblox</p><button className="text-button" onClick={()=>navigate('Meu perfil')}>Ver identificação completa</button></div>
+   </article>
+   <article className="m-panel academy-feature">
+    <div><small>Formação militar</small><h2>Academias do MIG</h2><p>Conquistas liberadas conforme sua progressão na hierarquia.</p></div>
+    <div className="academy-badges"><span><img src="/badges/esa.png" alt="Emblema ESA"/><b>ESA</b></span><span><img src="/badges/aman.png" alt="Emblema AMAN"/><b>AMAN</b></span></div>
+   </article>
+   <article className="m-panel mission-feature">
+    <small>Próxima missão</small><h2>Prepare sua operação</h2>
+    <ol><li><span>01</span>Confirme a modalidade</li><li><span>02</span>Reúna o efetivo</li><li><span>03</span>Registre a prova</li></ol>
+    {visible.includes(primaryAction as Channel)&&<button className="m-button primary" onClick={()=>navigate(primaryAction)}>Começar agora</button>}
+   </article>
+  </section>
+  <section className="m-panel division-panel"><div className="panel-title"><div><small>Comunidades</small><h2>Divisões do MIG</h2></div><span>{DIVISOES.length} grupos conectados</span></div><div className="division-cards">{DIVISOES.map(d=>{const image=divisionImage(d.sigla);return<a key={d.id} href={`https://www.roblox.com/communities/${d.groupId}`} target="_blank" rel="noreferrer">{image?<img className="division-image" src={image} alt={`Emblema ${d.nome}`}/>:<span className="division-symbol"><Icon name={d.sigla==='EXÉRCITO'?'shield':'layers'} size={22}/></span>}<b>{d.sigla}</b><span>{data?.divisoes[d.sigla]??'—'} militares</span><small>{d.nome}</small></a>})}</div></section>
  </>
 }
 function Statistics({data}:{data:ManagerData|null}){const logs=data?.atividadesRecentes||[];const days=Array.from({length:14},(_,i)=>{const d=new Date();d.setDate(d.getDate()-13+i);return {label:d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'}),count:logs.filter(l=>l.tipo==='promocao'&&new Date(l.timestamp).toDateString()===d.toDateString()).length}});const max=Math.max(1,...days.map(d=>d.count));return <><div className="metric-grid"><Metric label="Promoções" value={data?.auditAvailable?logs.filter(l=>l.tipo==='promocao').length:'—'} icon="award" note="Histórico registrado"/><Metric label="Rebaixamentos" value={data?.auditAvailable?logs.filter(l=>l.tipo==='rebaixamento').length:'—'} icon="down" note="Histórico registrado"/><Metric label="Treinamentos" value={data?.auditAvailable?data.treinosMes:'—'} icon="flag" note="Mês atual"/><Metric label="Efetivo" value={data?.totalSincronizados??'—'} icon="users" note="Grupo principal"/></div><section className="m-panel"><div className="panel-title"><h2>Promoções por dia</h2><span>Últimos 14 dias</span></div>{logs.length?<div className="bar-chart" role="img" aria-label={days.map(d=>`${d.label}: ${d.count} promoções`).join('; ')}>{days.map(d=><div className="chart-column" key={d.label}><b>{d.count}</b><div style={{height:`${Math.max(2,d.count/max*150)}px`}}/><small>{d.label}</small></div>)}</div>:<Blank text="O gráfico aparece quando houver promoções registradas."/>}</section><Ranking logs={logs}/></>}
