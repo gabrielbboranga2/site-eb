@@ -9,6 +9,7 @@ import {isCreatorRole} from '@/lib/manager';
 import {getRobloxIdentities,identityName} from '@/lib/roblox-identities';
 import {readOpenTrainingWindows} from '@/lib/promotion-training';
 export const dynamic='force-dynamic';
+function publicDescription(type:string,description:string){if(type!=='resgate')return description;const value=description.toLocaleLowerCase('pt-BR');if(value.includes('encerrad'))return'Recompensa encerrada por um Criador';if(value.includes('entrega confirmada'))return'Entrega de recompensa confirmada';if(value.includes('criad')||value.includes('configurad'))return'Nova recompensa configurada';return'Recompensa resgatada'}
 export async function GET(request:Request){
  const user=await getSessionUser<{exp:number;id:string;roleId?:string;rankNumber?:number}>(request);
  if(!user)return NextResponse.json({error:'Não autorizado.'},{status:401});
@@ -30,7 +31,7 @@ export async function GET(request:Request){
   if(!allowed('Ranking')&&!allowed('Logs globais'))trainingWindows=trainingWindows.filter(w=>w.actorId===user.id);
   const profiles=await getRobloxIdentities([...logs.flatMap(l=>[l.userId,...(l.autorId?[l.autorId]:[])]),...cdpMembers.map(m=>m.userId),...trainingWindows.map(w=>w.actorId)]);
   const name=(id:string,stored?:string)=>profiles.get(id)?.username==='Perfil indisponível'?identityName(stored):profiles.get(id)?.username||identityName(stored);
-  logs=logs.map(l=>({...l,username:name(l.userId,l.username),avatar:profiles.get(l.userId)?.avatar,autorUsername:l.autorId?name(l.autorId,l.autorUsername):l.autorUsername,autorAvatar:l.autorId?profiles.get(l.autorId)?.avatar:undefined}));
+  logs=logs.map(l=>({...l,descricao:publicDescription(l.tipo,l.descricao),username:name(l.userId,l.username),avatar:profiles.get(l.userId)?.avatar,autorUsername:l.autorId?name(l.autorId,l.autorUsername):l.autorUsername,autorAvatar:l.autorId?profiles.get(l.autorId)?.avatar:undefined}));
   cdpMembers=cdpMembers.map(m=>({...m,username:name(m.userId,m.username),avatar:profiles.get(m.userId)?.avatar}));
   trainingWindows=trainingWindows.map(w=>({...w,actorUsername:name(w.actorId,w.actorUsername),avatar:profiles.get(w.actorId)?.avatar}));
   return NextResponse.json({...totals,logs,cdpMembers,trainingWindows,auditAvailable:isDatabaseConfigured()},{headers:{'cache-control':'no-store'}});
