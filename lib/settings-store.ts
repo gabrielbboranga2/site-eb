@@ -1,6 +1,6 @@
 import {readFile,writeFile,mkdir,rename} from 'node:fs/promises';
 import {join} from 'node:path';
-import {DEFAULT_PERMISSIONS,validPermissions,type Permissions} from './access';
+import {DEFAULT_PERMISSIONS,validPermissions,migratePermissions,type Permissions} from './access';
 import {db,isDatabaseConfigured} from './db';
 const file=join(process.cwd(),'.data','permissions.json');
 let ready:Promise<void>|null=null;
@@ -10,7 +10,7 @@ export async function readPermissions():Promise<Permissions>{
  let parsed:unknown=null;
  if(isDatabaseConfigured()){await schema();const rows=await db()`SELECT value FROM manager_settings WHERE key='channel_permissions'`;parsed=rows[0]?.value}
  else if(!process.env.VERCEL){try{parsed=JSON.parse(await readFile(file,'utf8'))}catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e}}
- if(!parsed)return {...DEFAULT_PERMISSIONS};if(!validPermissions(parsed))throw new Error('Configuração de permissões inválida.');return parsed;
+ if(!parsed)return {...DEFAULT_PERMISSIONS};return migratePermissions(parsed);
 }
 export async function writePermissions(value:Permissions){
  if(!validPermissions(value))throw new Error('Permissões inválidas.');

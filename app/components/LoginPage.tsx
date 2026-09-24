@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useState} from 'react';
+import {ShieldCheck,Shield,Check} from 'lucide-react';
 export default function LoginPage(){
   const[err,setErr]=useState('');
   useEffect(()=>{
@@ -17,7 +18,7 @@ export default function LoginPage(){
   },[]);
   return <main className="login-page">
     <section className="login-intro">
-      <div className="login-brand"><span className="login-brand-mark">EB</span><div><b>EB DO MIG</b><small>Central Militar</small></div></div>
+      <div className="login-brand"><span className="login-brand-mark"><Shield size={30} aria-hidden="true"/></span><div><b>EB DO MIG</b><small>Central Militar</small></div></div>
       <div>
         <span className="login-kicker">SISTEMA INTERNO DE COMANDO</span>
         <h1>Gestão clara.<br/><strong>Comando em ordem.</strong></h1>
@@ -32,13 +33,13 @@ export default function LoginPage(){
     </section>
 
     <section className="login-card">
-      <div className="login-card-head"><span className="login-seal">EB</span><div><small>ACESSO RESTRITO</small><b>Identificação militar</b></div></div>
+      <div className="login-card-head"><span className="login-seal"><ShieldCheck size={28} aria-hidden="true"/></span><div><small>ACESSO RESTRITO</small><b>Identificação militar</b></div></div>
       <h2>Entre na Central</h2>
       <p>Use sua conta do Roblox para validar sua patente e permissões.</p>
       {err&&<div className="login-error" role="alert">{err}</div>}
       <a className="login-roblox" href="/api/auth/roblox/start"><svg className="roblox-glyph" aria-hidden="true" viewBox="0 0 24 24" focusable="false"><path fill="currentColor" fillRule="evenodd" d="M3 3h18v18H3zM8.5 8.5h7v7h-7z" transform="rotate(14 12 12)"/></svg><span>Continuar com Roblox</span></a>
       <div className="login-step-note"><span>01</span><div><b>Validação pelo Roblox</b><small>Seu cargo define automaticamente o que você pode consultar.</small></div></div>
-      <div className="login-security"><span aria-hidden="true">✓</span> Autenticação segura via OAuth</div>
+      <div className="login-security"><Check size={17} aria-hidden="true"/> Autenticação segura via OAuth</div>
       <small>Nenhuma senha é armazenada pelo EB DO MIG.</small>
       <div className="login-links"><a href="/privacidade">Privacidade</a><a href="/termos">Termos de Serviço</a><a href="/preview">Ver demonstração</a></div>
     </section>

@@ -4,13 +4,13 @@ import{PATENTES,getPatenteByRoleId}from'./patentes';
 
 export type CdpStatus='active'|'completed'|'cancelled'|'consumed';
 export interface CdpRecord{
-  id:string;userId:string;username:string;roleId:string;rankName:string;durationDays:number;
+  id:string;userId:string;username:string;roleId:string;rankName:string;durationHours:number;
   status:CdpStatus;startedAt:string;endsAt:string;completedAt:string|null;cancelledAt:string|null;
   consumedAt:string|null;createdByUsername:string;reason:string;
 }
-export interface CdpSetting{roleId:string;sigla:string;nome:string;days:number;promovivel:boolean}
+export interface CdpSetting{roleId:string;sigla:string;nome:string;hours:number;promovivel:boolean}
 
-type Row={id:string;user_id:string;username:string;role_id:string;rank_name:string;duration_days:number;status:CdpStatus;started_at:Date|string;ends_at:Date|string;completed_at:Date|string|null;cancelled_at:Date|string|null;consumed_at:Date|string|null;created_by_username:string;reason:string};
+type Row={id:string;user_id:string;username:string;role_id:string;rank_name:string;duration_days:number;duration_hours:number;status:CdpStatus;started_at:Date|string;ends_at:Date|string;completed_at:Date|string|null;cancelled_at:Date|string|null;consumed_at:Date|string|null;created_by_username:string;reason:string};
 let schemaReady:Promise<void>|null=null;
 
 async function ensureSchema(){
@@ -48,12 +48,16 @@ async function ensureSchema(){
       updated_by_username text NOT NULL,
       updated_at timestamptz NOT NULL DEFAULT now()
     )`;
+    await sql`ALTER TABLE cdp_records ADD COLUMN IF NOT EXISTS duration_hours integer CHECK(duration_hours BETWEEN 0 AND 8760)`;
+    await sql`UPDATE cdp_records SET duration_hours=duration_days*24 WHERE duration_hours IS NULL`;
+    await sql`ALTER TABLE cdp_settings ADD COLUMN IF NOT EXISTS hours integer CHECK(hours BETWEEN 0 AND 720)`;
+    await sql`UPDATE cdp_settings SET hours=days*24 WHERE hours IS NULL`;
   })().catch(error=>{schemaReady=null;throw error});
   return schemaReady;
 }
 
 function iso(value:Date|string|null){return value?new Date(value).toISOString():null}
-function mapRow(row:Row):CdpRecord{return{id:row.id,userId:row.user_id,username:row.username,roleId:row.role_id,rankName:row.rank_name,durationDays:Number(row.duration_days),status:row.status,startedAt:iso(row.started_at)!,endsAt:iso(row.ends_at)!,completedAt:iso(row.completed_at),cancelledAt:iso(row.cancelled_at),consumedAt:iso(row.consumed_at),createdByUsername:row.created_by_username,reason:row.reason}}
+function mapRow(row:Row):CdpRecord{return{id:row.id,userId:row.user_id,username:row.username,roleId:row.role_id,rankName:row.rank_name,durationHours:Number(row.duration_hours??row.duration_days*24),status:row.status,startedAt:iso(row.started_at)!,endsAt:iso(row.ends_at)!,completedAt:iso(row.completed_at),cancelledAt:iso(row.cancelled_at),consumedAt:iso(row.consumed_at),createdByUsername:row.created_by_username,reason:row.reason}}
 
 async function completeExpired(){
   await ensureSchema();
@@ -64,20 +68,20 @@ export async function getCdpSettings():Promise<CdpSetting[]>{
   const overrides=new Map<string,number>();
   if(isDatabaseConfigured()){
     await ensureSchema();
-    const rows=await db()<Array<{role_id:string;days:number}>>`SELECT role_id,days FROM cdp_settings`;
-    rows.forEach(row=>overrides.set(row.role_id,Number(row.days)));
+    const rows=await db()<Array<{role_id:string;hours:number}>>`SELECT role_id,hours FROM cdp_settings`;
+    rows.forEach(row=>overrides.set(row.role_id,Number(row.hours)));
   }
-  return PATENTES.filter(rank=>rank.promovivel).map(rank=>({roleId:rank.roleId,sigla:rank.sigla,nome:rank.nome,days:overrides.get(rank.roleId)??rank.cdpDias,promovivel:rank.promovivel}));
+  return PATENTES.filter(rank=>rank.promovivel).map(rank=>({roleId:rank.roleId,sigla:rank.sigla,nome:rank.nome,hours:overrides.get(rank.roleId)??rank.cdpDias*24,promovivel:rank.promovivel}));
 }
 
-export async function saveCdpSettings(updates:Array<{roleId:string;days:number}>,actor:{id:string;username:string}){
+export async function saveCdpSettings(updates:Array<{roleId:string;hours:number}>,actor:{id:string;username:string}){
   await ensureSchema();
   const allowed=new Set(PATENTES.filter(rank=>rank.promovivel).map(rank=>rank.roleId));
-  const clean=updates.filter(item=>allowed.has(item.roleId)&&Number.isInteger(item.days)&&item.days>=0&&item.days<=30);
-  if(clean.length!==updates.length||!clean.length)throw new Error('Configuração de dias inválida.');
+  const clean=updates.filter(item=>allowed.has(item.roleId)&&Number.isInteger(item.hours)&&item.hours>=0&&item.hours<=720);
+  if(clean.length!==updates.length||!clean.length)throw new Error('Configuração de horas inválida.');
   const sql=db();
   await sql.begin(async transaction=>{
-    for(const item of clean)await transaction`INSERT INTO cdp_settings(role_id,days,updated_by_user_id,updated_by_username) VALUES(${item.roleId},${item.days},${actor.id},${actor.username}) ON CONFLICT(role_id) DO UPDATE SET days=excluded.days,updated_by_user_id=excluded.updated_by_user_id,updated_by_username=excluded.updated_by_username,updated_at=now()`;
+    for(const item of clean)await transaction`INSERT INTO cdp_settings(role_id,days,hours,updated_by_user_id,updated_by_username) VALUES(${item.roleId},${Math.ceil(item.hours/24)},${item.hours},${actor.id},${actor.username}) ON CONFLICT(role_id) DO UPDATE SET days=excluded.days,hours=excluded.hours,updated_by_user_id=excluded.updated_by_user_id,updated_by_username=excluded.updated_by_username,updated_at=now()`;
   });
   return getCdpSettings();
 }
@@ -103,13 +107,13 @@ export async function startMemberCdp(input:{userId:string;username:string;roleId
   const rank=getPatenteByRoleId(input.roleId);
   if(!rank||!rank.promovivel)throw new Error('A patente atual não participa do ciclo de CDP.');
   const setting=(await getCdpSettings()).find(item=>item.roleId===input.roleId);
-  const days=setting?.days??rank.cdpDias;
-  if(days===0)throw new Error('Esta patente não exige tempo de CDP para promoção.');
+  const hours=setting?.hours??rank.cdpDias*24;
+  if(hours===0)throw new Error('Esta patente não exige tempo de CDP para promoção.');
   const sql=db();
   const existing=await sql<Row[]>`SELECT * FROM cdp_records WHERE user_id=${input.userId} AND status='active' LIMIT 1`;
   if(existing[0])throw new Error('Este militar já possui uma CDP em andamento.');
-  const startedAt=new Date();const endsAt=new Date(startedAt.getTime()+days*86_400_000);
-  const rows=await sql<Row[]>`INSERT INTO cdp_records(id,user_id,username,role_id,rank_name,duration_days,status,started_at,ends_at,created_by_user_id,created_by_username,reason) VALUES(${randomUUID()},${input.userId},${input.username},${input.roleId},${input.rankName},${days},'active',${startedAt},${endsAt},${input.actorId},${input.actorUsername},${input.reason}) RETURNING *`;
+  const startedAt=new Date();const endsAt=new Date(startedAt.getTime()+hours*3_600_000);
+  const rows=await sql<Row[]>`INSERT INTO cdp_records(id,user_id,username,role_id,rank_name,duration_days,duration_hours,status,started_at,ends_at,created_by_user_id,created_by_username,reason) VALUES(${randomUUID()},${input.userId},${input.username},${input.roleId},${input.rankName},${Math.ceil(hours/24)},${hours},'active',${startedAt},${endsAt},${input.actorId},${input.actorUsername},${input.reason}) RETURNING *`;
   return mapRow(rows[0]);
 }
 
@@ -128,7 +132,7 @@ export async function getPromotionCdp(userId:string,currentRoleId:string){
   const rank=getPatenteByRoleId(currentRoleId);
   if(!rank)return null;
   const setting=(await getCdpSettings()).find(item=>item.roleId===currentRoleId);
-  if((setting?.days??rank.cdpDias)===0)return null;
+  if((setting?.hours??rank.cdpDias*24)===0)return null;
   if(!isDatabaseConfigured())throw new Error('A promoção exige CDP, mas o banco de dados ainda não está conectado.');
   await completeExpired();
   const rows=await db()<Row[]>`SELECT * FROM cdp_records WHERE user_id=${userId} AND role_id=${currentRoleId} AND status='completed' AND consumed_at IS NULL ORDER BY completed_at DESC LIMIT 1`;
@@ -150,9 +154,9 @@ export async function assertPromotionCdpAvailable(userId:string){
 
 export async function startPromotionCdp(input:{userId:string;username:string;targetRoleId:string;targetRankName:string;actorId:string;actorUsername:string}){
  const rank=getPatenteByRoleId(input.targetRoleId);if(!rank||!rank.promovivel)return null;
- const days=(await getCdpSettings()).find(item=>item.roleId===input.targetRoleId)?.days??rank.cdpDias;
- if(days===0)return null;
- await completeExpired();const startedAt=new Date();const endsAt=new Date(startedAt.getTime()+days*86_400_000);
- const rows=await db()<Row[]>`INSERT INTO cdp_records(id,user_id,username,role_id,rank_name,duration_days,status,started_at,ends_at,created_by_user_id,created_by_username,reason) VALUES(${randomUUID()},${input.userId},${input.username},${input.targetRoleId},${input.targetRankName},${days},'active',${startedAt},${endsAt},${input.actorId},${input.actorUsername},'CDP iniciada automaticamente após promoção') RETURNING *`;
+ const hours=(await getCdpSettings()).find(item=>item.roleId===input.targetRoleId)?.hours??rank.cdpDias*24;
+ if(hours===0)return null;
+ await completeExpired();const startedAt=new Date();const endsAt=new Date(startedAt.getTime()+hours*3_600_000);
+ const rows=await db()<Row[]>`INSERT INTO cdp_records(id,user_id,username,role_id,rank_name,duration_days,duration_hours,status,started_at,ends_at,created_by_user_id,created_by_username,reason) VALUES(${randomUUID()},${input.userId},${input.username},${input.targetRoleId},${input.targetRankName},${Math.ceil(hours/24)},${hours},'active',${startedAt},${endsAt},${input.actorId},${input.actorUsername},'CDP iniciada automaticamente após promoção') RETURNING *`;
  return mapRow(rows[0]);
 }

@@ -20,8 +20,8 @@ export async function PATCH(request:Request){
   if(!session.isCreator)return NextResponse.json({error:'Somente o criador pode alterar o tempo das CDPs.'},{status:403});
   try{
     if(!sameOrigin(request)||!await currentCreator(request))return NextResponse.json({error:'Acesso exclusivo de Criadores.'},{status:403});
-    const body=await request.json()as{settings?:Array<{roleId?:string;days?:number}>};
-    const updates=(body.settings||[]).map(item=>({roleId:String(item.roleId||''),days:Number(item.days)}));
+    const body=await request.json()as{settings?:Array<{roleId?:string;hours?:number}>};
+    const updates=(body.settings||[]).map(item=>({roleId:String(item.roleId||''),hours:Number(item.hours)}));
     return NextResponse.json({ok:true,configured:true,settings:await saveCdpSettings(updates,{id:session.id,username:session.username})},{headers:{'cache-control':'no-store'}});
   }catch(error){return failure(error)}
 }

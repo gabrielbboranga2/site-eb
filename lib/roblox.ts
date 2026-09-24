@@ -113,9 +113,9 @@ export async function getUserGroupMemberships(userId:string):Promise<UserGroupMe
     try{
       const membership=await getGroupMembershipForUser(division.groupId,userId,apiKey);
       if(!membership)return null;
-      const roleId=resourceId(membership.role)||resourceId(membership.roles?.at(-1));
-      if(!roleId)return null;
       const roles=await listGroupRoles(division.groupId,apiKey);
+      const roleId=highestMembershipRole(membership,roles);
+      if(!roleId)return null;
       const role=roles.get(roleId);
       return{sigla:division.sigla,groupId:division.groupId,roleId,roleName:role?.displayName||'Membro',rankNumber:role?.rank||0} satisfies UserGroupMembership;
     }catch(error){if(division.groupId===521106467)throw error;console.warn(`Comunidade opcional ${division.groupId} indisponível.`,error);return null}
@@ -154,7 +154,7 @@ async function loadRoster():Promise<LiveMember[]>{
   return userIds.map(userId=>{
     const entries=users.get(userId)!.memberships;
     const mainEntry=entries.find(entry=>entry.group.sigla==='EXÉRCITO')||entries[0];
-    const roleId=resourceId(mainEntry.membership.role)||resourceId(mainEntry.membership.roles?.at(-1))||'';
+    const roleId=highestMembershipRole(mainEntry.membership,mainEntry.group.roles);
     const role=mainEntry.group.roles.get(roleId);
     const patente=getPatenteByRoleId(roleId);
     const divisions=entries.map(entry=>entry.group.sigla);
@@ -184,7 +184,7 @@ export async function previewRankChange(userId:string,groupId:number,direction:'
   if(!division)throw new Error('Comunidade inválida.');
   const membership=await getGroupMembershipForUser(groupId,userId,apiKey);
   if(!membership)throw new Error('Este usuário não pertence à comunidade selecionada.');
-  const currentId=resourceId(membership.role)||resourceId(membership.roles?.at(-1));
+  const currentId=highestMembershipRole(membership,await listGroupRoles(groupId,apiKey));
   if(!currentId)throw new Error('Não foi possível identificar o cargo atual.');
   const hierarchy=(await getLiveHierarchies()).find(group=>group.groupId===groupId);
   if(!hierarchy)throw new Error('Hierarquia indisponível.');
@@ -212,7 +212,7 @@ export async function previewDirectRankChange(userId:string,groupId:number,targe
   if(!apiKey)throw new Error('ROBLOX_API_KEY não configurada.');
   const division=(await getDivisions()).find(item=>item.groupId===groupId);if(!division)throw new Error('Comunidade inválida.');
   const membership=await getGroupMembershipForUser(groupId,userId,apiKey);if(!membership)throw new Error('Este usuário não pertence à comunidade selecionada.');
-  const currentId=resourceId(membership.role)||resourceId(membership.roles?.at(-1));
+  const currentId=highestMembershipRole(membership,await listGroupRoles(groupId,apiKey));
   const hierarchy=(await getLiveHierarchies()).find(group=>group.groupId===groupId);if(!hierarchy)throw new Error('Hierarquia indisponível.');
   const current=hierarchy.roles.find(role=>role.id===currentId),target=hierarchy.roles.find(role=>role.id===targetRoleId);
   if(!current||!target)throw new Error('O cargo atual ou o cargo escolhido não existe mais.');
@@ -220,9 +220,10 @@ export async function previewDirectRankChange(userId:string,groupId:number,targe
   return{groupId,community:division.sigla,userId,direction:'promotion',current,target};
 }
 
-export async function applyDirectRankChange(userId:string,groupId:number,targetRoleId:string):Promise<RankChangeResult>{
+export async function applyDirectRankChange(userId:string,groupId:number,targetRoleId:string,expectedCurrentRoleId?:string):Promise<RankChangeResult>{
   const apiKey=process.env.ROBLOX_API_KEY?.trim();if(!apiKey)throw new Error('ROBLOX_API_KEY não configurada.');
   const change=await previewDirectRankChange(userId,groupId,targetRoleId);
+  if(expectedCurrentRoleId&&change.current.id!==expectedCurrentRoleId)throw new Error('A patente mudou desde a conferência. Verifique o resgate antes de repetir.');
   if(change.current.id===change.target.id)throw new Error('O militar já possui este cargo.');
   await assignRoleToMember(userId,groupId,change.current.id,change.target.id,apiKey);rosterCache=null;hierarchyCache=null;return change;
 }
@@ -253,7 +254,7 @@ export async function applyBulkRankChange(groupId:number,sourceRoleId:string,dir
     await Promise.all(batch.map(async userId=>{try{await assignRoleToMember(userId,groupId,sourceRoleId,expectedTargetRoleId,apiKey);succeeded.push(userId)}catch(error){failed.push({userId,error:error instanceof Error?error.message:'Falha desconhecida'})}}));
   }
   rosterCache=null;hierarchyCache=null;
-  return{preview,succeededCount:succeeded.length,failedCount:failed.length,failed:failed.slice(0,20)};
+  return{preview,succeededUserIds:succeeded,succeededCount:succeeded.length,failedCount:failed.length,failed:failed.slice(0,20)};
 }
 
 async function assignRoleToMember(userId:string,groupId:number,currentRoleId:string,targetRoleId:string,apiKey:string){
@@ -269,8 +270,8 @@ async function robloxWriteError(response:Response,fallback:string){
 }
 
 async function loadHierarchies():Promise<LiveGroupHierarchy[]>{
-  return Promise.all((await getDivisions()).map(async division=>{
-    const response=await fetch(`https://groups.roblox.com/v1/groups/${division.groupId}/roles`,{cache:'no-store'});
+  return (await Promise.all((await getDivisions()).map(async division=>{
+    try{const response=await fetch(`https://groups.roblox.com/v1/groups/${division.groupId}/roles`,{cache:'no-store'});
     if(!response.ok)throw new Error(`Falha ao consultar cargos públicos do grupo ${division.groupId} (${response.status}).`);
     const data=await response.json()as{roles?:PublicGroupRole[]};
     return{
@@ -278,8 +279,8 @@ async function loadHierarchies():Promise<LiveGroupHierarchy[]>{
       sigla:division.sigla,
       name:division.nome,
       roles:(data.roles||[]).map(role=>({id:String(role.id),name:role.name||'Cargo sem nome',rank:role.rank||0})).sort((left,right)=>right.rank-left.rank||left.name.localeCompare(right.name,'pt-BR')),
-    };
-  }));
+    };}catch(error){if(division.groupId===521106467)throw error;return null}
+  }))).filter((group):group is LiveGroupHierarchy=>group!==null);
 }
 
 async function listGroupMemberships(groupId:number,apiKey:string):Promise<GroupMembership[]>{
@@ -345,7 +346,7 @@ async function fetchAvatars(userIds:string[]):Promise<Map<string,string>>{
     url.searchParams.set('size','150x150');
     url.searchParams.set('format','Png');
     url.searchParams.set('isCircular','false');
-    const response=await fetch(url,{cache:'no-store'});
+    const response=await fetch(url,{cache:'no-store',signal:AbortSignal.timeout(8000)});
     if(!response.ok)return;
     const data=await response.json()as{data?:Array<{targetId:number;imageUrl?:string}>};
     for(const avatar of data.data||[])if(avatar.imageUrl)avatars.set(String(avatar.targetId),avatar.imageUrl);
@@ -353,6 +354,9 @@ async function fetchAvatars(userIds:string[]):Promise<Map<string,string>>{
   return avatars;
 }
 
+export function highestMembershipRole(membership:GroupMembership,roles:Map<string,GroupRole>):string{
+  return [...new Set([membership.role,...(membership.roles||[])].map(resourceId).filter(Boolean))].filter(id=>roles.has(id)).sort((a,b)=>(roles.get(b)?.rank||0)-(roles.get(a)?.rank||0))[0]||'';
+}
 function resourceId(path?:string):string{
   return path?.split('/').filter(Boolean).at(-1)||'';
 }

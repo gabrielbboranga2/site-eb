@@ -1,3 +1,4 @@
+import {currentCreator,sameOrigin} from '@/lib/authorize';
 import{NextResponse}from'next/server';
 import{getSessionUser}from'@/lib/auth';
 import{getMemberCdp,startMemberCdp,updateMemberCdp}from'@/lib/cdp';
@@ -26,7 +27,7 @@ export async function GET(request:Request){
 export async function POST(request:Request){
   const session=await getSessionUser<Session>(request);
   if(!session)return NextResponse.json({error:'Sua sessão expirou. Entre novamente.'},{status:401});
-  if(!canManage(session))return NextResponse.json({error:'Somente administradores e alto comando podem controlar CDPs.'},{status:403});
+  if(!sameOrigin(request)||!await currentCreator(request))return NextResponse.json({error:'Somente Criadores podem controlar CDPs.'},{status:403});
   try{
     const body=await request.json()as{action?:string;userId?:string;username?:string;recordId?:string;reason?:string};
     const action=body.action;
@@ -41,7 +42,7 @@ export async function POST(request:Request){
       const rankName=rank?`[${rank.sigla}] ${rank.nome}`:membership.roleName;
       const record=await startMemberCdp({userId,username,roleId:membership.roleId,rankName,actorId:session.id,actorUsername:session.username,reason});
       await logCdp('CDP iniciada',record,session.username,reason);
-      await recordActivity({tipo:'cdp_inicio',userId:record.userId,username:record.username,descricao:`${record.rankName} · ${record.durationDays} dia(s)`,autorId:session.id,autorUsername:session.username},{required:true});
+      await recordActivity({tipo:'cdp_inicio',userId:record.userId,username:record.username,descricao:`${record.rankName} · ${record.durationHours} hora(s)`,autorId:session.id,autorUsername:session.username},{required:true});
       return NextResponse.json({ok:true,record},{status:201,headers:{'cache-control':'no-store'}});
     }
     if(action==='complete'||action==='cancel'){
@@ -64,4 +65,4 @@ function failure(error:unknown){
   return NextResponse.json({error:message},{status});
 }
 
-async function logCdp(title:string,record:{username:string;rankName:string;durationDays:number;endsAt:string;status:string},actor:string,reason:string){return sendSiteLog({title,color:0xBDA866,fields:[{name:'Militar',value:`${record.username}\n${record.rankName}`,inline:true},{name:'Responsável',value:actor,inline:true},{name:'Duração',value:`${record.durationDays} dia(s)`,inline:true},{name:'Situação',value:record.status,inline:true},{name:'Término previsto',value:new Date(record.endsAt).toLocaleString('pt-BR'),inline:true},{name:'Motivo',value:reason||'Não informado'}]})}
+async function logCdp(title:string,record:{username:string;rankName:string;durationHours:number;endsAt:string;status:string},actor:string,reason:string){return sendSiteLog({title,color:0xBDA866,fields:[{name:'Militar',value:`${record.username}\n${record.rankName}`,inline:true},{name:'Responsável',value:actor,inline:true},{name:'Duração',value:`${record.durationHours} hora(s)`,inline:true},{name:'Situação',value:record.status,inline:true},{name:'Término previsto',value:new Date(record.endsAt).toLocaleString('pt-BR'),inline:true},{name:'Motivo',value:reason||'Não informado'}]})}

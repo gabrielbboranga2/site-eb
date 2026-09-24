@@ -3,7 +3,7 @@ import type {Channel} from '@/lib/access';
 import{NextResponse}from'next/server';
 import{getSessionUser}from'@/lib/auth';
 import{getLiveRoster}from'@/lib/roblox';
-import{DIVISOES}from'@/lib/divisoes-mig';
+import{getDivisions}from'@/lib/creator-config';
 import{getActiveCdpMap}from'@/lib/cdp';
 
 export const dynamic='force-dynamic';
@@ -15,7 +15,7 @@ export async function GET(request:Request){
   try{
     const channel=new URL(request.url).searchParams.get('channel')||'Estatísticas'; if(!['Início','Estatísticas'].includes(channel)||!await authorizedFor(request,[channel as Channel]))return NextResponse.json({error:'Sua patente não tem acesso a esta guia.'},{status:403});
     const[members,activeCdp]=await Promise.all([getLiveRoster(),getActiveCdpMap()]);
-    const divisoes=Object.fromEntries(DIVISOES.map(division=>[
+    const divisoes=Object.fromEntries((await getDivisions()).map(division=>[
       division.sigla,
       members.filter(member=>member.divisions.includes(division.sigla)).length,
     ]));

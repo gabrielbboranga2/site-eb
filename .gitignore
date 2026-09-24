@@ -46,3 +46,6 @@ next-env.d.ts
 # embedded folder
 EB-DO-MIG-Netlify/
 .env*
+
+# TypeScript incremental build cache
+*.tsbuildinfo
