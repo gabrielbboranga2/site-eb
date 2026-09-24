@@ -1,7 +1,8 @@
 import {getLiveHierarchies,getUserGroupMemberships} from './roblox';
-type Role={id:string;rank:number};
+type Role={id:string;rank:number;name?:string};
 export function isModeratorOrAbove(roleId:string,roles:Role[]){
-  const moderator=roles.find(r=>r.id==='808432019'),actor=roles.find(r=>r.id===roleId);
+  const matches=roles.filter(r=>/^(?:\[MOD\]\s*)?Moderador$/i.test(r.name?.trim()||''));
+  const moderator=matches.length===1?matches[0]:undefined,actor=roles.find(r=>r.id===roleId);
   return !!moderator&&!!actor&&actor.rank>=moderator.rank;
 }
 export async function canSkipPromotionTraining(userId:string){

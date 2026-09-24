@@ -203,3 +203,12 @@ ROBLOX_GROUP_ID e ROBLOX_DIVISION_GROUPS da configuração antiga não substitue
 42 testes passaram, incluindo replay/concorrência de códigos, bloqueio de administração forjada, código expirado, patente igual/superior, falha do Roblox, CDP em horas e autorização com sessão antiga. Os testes de persistência usam banco simulado; a migração real será conferida após publicar. Lint sem erros. Build de produção aprovado. Demonstração de criação e resgate validada no navegador; não houve alteração real de patente do MIG nesta etapa.
 
 Detalhes de acabamento: prévia ao vivo dos anúncios, confirmação antes do resgate, histórico com situação de entrega e perfil do militar. Próximas evoluções: (1) teste integrado em ambiente de homologação com conta de treino; (2) associação explícita entre relatório manual e sessão automática para evitar dupla contagem; (3) serviço de entrega automática para recompensas externas quando houver API definida.
+
+
+### Conferência da publicação
+
+Commit a240410 publicado via GitHub/Vercel com status success. Login OAuth real concluído no domínio eb-do-mig.vercel.app. Dashboard, fotos, banco, leitura Open Cloud e diagnóstico carregaram. CDP real de Soldado confirmou 24 horas. As variáveis obrigatórias estão presentes, inclusive TRAINING_CODE_API_SECRET, e webhooks configurados; escrita de cargos e envio Discord não foram provocados neste teste.
+
+Em produção, código [TESTE TÉCNICO] Validação de resgate criado com uma utilização, resgatado por bielboranga, segunda tentativa recusada, entrega manual confirmada e código encerrado. Nenhum item ou patente real foi entregue; auditoria preservada. Isso confirmou as novas tabelas e transações reais de resgate. Consulta de gabribor_sola exibiu foto, username, patente Aspirante e destino Segundo Tenente, sem aplicar UP.
+
+A consulta real identificou ID obsoleto no cargo MOD: o código antigo referenciava 808432019; a hierarquia pública atual informa 816356014, nível 103. O antigo canAdmin não reconhecia esse ID, bloqueando a operação apesar da guia estar permitida. A autorização de operações já usa a função atual no Roblox; a regra Sem treino agora localiza o único Moderador por nome na hierarquia principal e compara seu nível, falhando fechada se o limiar for ausente ou ambíguo. Novo teste cobre IDs alterados. Ajustada também a mensagem da consulta de recompensa para não informar criação durante uma simples prévia.
