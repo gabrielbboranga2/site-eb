@@ -5,14 +5,18 @@ import './visual-system.css';
 import './manager.css';
 import './dashboard-premium.css';
 import './command-system.css';
+import './public-site.css';
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL || 'http://localhost:3000'),
   title: 'EB DO MIG | Central Militar',
-  description: 'Central de comando, capacitação e gestão militar do EB DO MIG.',
+  description: 'Central oficial do EB DO MIG para efetivo, treinamentos, promoções, divisões e auditoria militar integrada ao Roblox.',
+  alternates:{canonical:'/'},
+  keywords:['EB DO MIG','Exército Brasileiro Roblox','central militar Roblox','treinamentos Roblox'],
   openGraph: {title:'EB DO MIG | Central Militar',description:'Central de comando, capacitação e gestão militar do EB DO MIG.',images:['/og.png']},
   twitter: {card:'summary_large_image',title:'EB DO MIG | Central Militar',description:'Central de comando, capacitação e gestão militar do EB DO MIG.',images:['/og.png']},
 };
+export const viewport={themeColor:'#080c0a',colorScheme:'dark'};
 
 export default function RootLayout({
   children,

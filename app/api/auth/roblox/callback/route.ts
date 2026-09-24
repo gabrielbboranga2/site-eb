@@ -1,7 +1,6 @@
 import{NextResponse}from'next/server';
-import{encodeSession,getAppOrigin,readCookie,secureCookie,sign}from'@/lib/auth';
-import{getPatenteByRoleId,canAdmin,isAltoComando}from'@/lib/patentes';
-import{getUserGroupMemberships}from'@/lib/roblox';
+import{getAppOrigin,readCookie,secureCookie}from'@/lib/auth';
+import{createSignedSession}from'@/lib/session-profile';
 
 export const dynamic='force-dynamic';
 
@@ -49,39 +48,10 @@ export async function GET(request:Request){
     const profile=await profileResponse.json()as{sub?:string;preferred_username?:string;name?:string;picture?:string};
     if(!profile.sub)return redirectError(origin,'profile');
 
-    const memberships=await getUserGroupMemberships(profile.sub);
-    const main=memberships.find(membership=>membership.groupId===521106467);
-    if(!main)return redirectError(origin,'nogroup');
-
-    const patente=getPatenteByRoleId(main.roleId);
-    const divisions=memberships.map(membership=>({
-      id:membership.groupId,
-      name:membership.sigla,
-      role:membership.roleName,
-      roleId:membership.roleId,
-      rankNumber:membership.rankNumber,
-    }));
-    const primaryDivision=divisions.find(division=>division.id!==521106467);
-    const isCreator=patente?.sigla==='CR';
-    const payload=encodeSession({
-      id:profile.sub,
-      username:profile.preferred_username||profile.name||'Militar',
-      avatar:profile.picture||'',
-      rank:patente?`[${patente.sigla}] ${patente.nome}`:main.roleName,
-      rankNumber:main.rankNumber,
-      roleId:main.roleId,
-      isCreator,
-      isAdmin:canAdmin(main.roleId)||isCreator,
-      isHighCommand:isAltoComando(main.roleId)||isCreator,
-      division:primaryDivision?.name||'EXÉRCITO',
-      divisions,
-      cdpDias:patente?.cdpDias||0,
-      exp:Date.now()+86_400_000,
-    });
-    const signature=await sign(payload,sessionSecret);
-    const response=NextResponse.redirect(origin);
+    const session=await createSignedSession({id:profile.sub,username:profile.preferred_username||profile.name||'Militar',avatar:profile.picture});
+    const response=NextResponse.redirect(`${origin}/central`);
     response.headers.set('cache-control','no-store');
-    response.cookies.set('eb_session',`${payload}.${signature}`,{
+    response.cookies.set('eb_session',session,{
       httpOnly:true,
       secure:secureCookie(origin),
       sameSite:'lax',

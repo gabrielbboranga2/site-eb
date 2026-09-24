@@ -1,9 +1,11 @@
 import{NextResponse}from'next/server';
 import{base64url,getAppOrigin,secureCookie}from'@/lib/auth';
+import{rateLimit,requestFingerprint}from'@/lib/rate-limit';
 
 export const dynamic='force-dynamic';
 
 export async function GET(request:Request){
+  if(!await rateLimit('oauth-start',requestFingerprint(request),20,10))return NextResponse.redirect(`${new URL(request.url).origin}/?login=rate`);
   const clientId=process.env.ROBLOX_CLIENT_ID?.trim();
   const origin=getAppOrigin(request.url);
   if(!clientId||!origin){
