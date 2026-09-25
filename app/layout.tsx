@@ -11,7 +11,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL || 'http://localhost:3000'),
   title: 'EB DO MIG | Central Militar',
   description: 'Central oficial do EB DO MIG para efetivo, treinamentos, promoções, divisões e auditoria militar integrada ao Roblox.',
-  alternates:{canonical:'/'},
+  alternates:{canonical:'https://eb-do-mig.vercel.app/'},
   keywords:['EB DO MIG','Exército Brasileiro Roblox','central militar Roblox','treinamentos Roblox'],
   openGraph: {title:'EB DO MIG | Central Militar',description:'Central de comando, capacitação e gestão militar do EB DO MIG.',images:['/og.png']},
   twitter: {card:'summary_large_image',title:'EB DO MIG | Central Militar',description:'Central de comando, capacitação e gestão militar do EB DO MIG.',images:['/og.png']},
