@@ -8,7 +8,7 @@ export function LegalPage({eyebrow,title,summary,children}:{eyebrow:string;title
       <Link className="legal-brand" href="/" aria-label="Voltar à Central Militar">
         <BrandEmblem size={48} decorative priority/><div><b>EB DO MIG</b><small>Central Militar</small></div>
       </Link>
-      <nav aria-label="Documentos legais"><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link></nav>
+      <nav aria-label="Páginas institucionais"><Link href="/ajuda">Ajuda</Link><Link href="/sobre">Sobre</Link><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link></nav>
     </header>
     <article className="legal-document">
       <div className="legal-heading"><span>{eyebrow}</span><h1>{title}</h1><p>{summary}</p><small>Última atualização: 28 de agosto de 2026</small></div>
