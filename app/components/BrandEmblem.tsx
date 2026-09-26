@@ -10,7 +10,7 @@ type BrandEmblemProps={
 export function BrandEmblem({size=52,className='',decorative=false,priority=false}:BrandEmblemProps){
   return <span className={`brand-emblem${className?` ${className}`:''}`} style={{width:size,height:size}}>
     <Image
-      src="/brand/eb-do-mig-emblem-256.png"
+      src="/brand/eb-do-mig-emblem-v2-256.png"
       width={size}
       height={size}
       sizes={`${size}px`}
